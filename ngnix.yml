@@ -1,0 +1,36 @@
+- hosts: webservers
+  become: yes
+  tasks:
+  - name: install packages
+    apt: name={{item}} state=installed
+    with_items:
+      - nginx
+  - name: create flask reverse proxy conf
+    become: yes
+    file:
+      path: /etc/nginx/sites-available/flask_proxy.conf
+      state: touch
+  - name: copy paste conf file
+    become: yes
+    blockinfile:
+        path: /etc/nginx/sites-available/flask_proxy.conf
+        marker: ""
+        block: |
+          server {
+             listen 80
+             location / {
+                  proxy_pass http://{{private-IP}};
+                  proxy_set_header Authorization "";
+                  proxy_read_timeout 90s;
+              }
+          }
+  - name: symlink nginx flask conf to site-enabled
+    become: yes
+    command:
+      cmd: ln -s /etc/nginx/sites-available/flask_proxy.conf /etc/nginx/sites-enabled/flask_proxy.conf
+  - name: service nginx restart
+    become: yes
+    service:
+      name: nginx
+      state: restarted
+      enabled: yes
